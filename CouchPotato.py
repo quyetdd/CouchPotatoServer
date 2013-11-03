@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from logging import handlers
 from os.path import dirname
 import logging
 import os
@@ -8,8 +7,8 @@ import signal
 import socket
 import subprocess
 import sys
-import traceback
 import time
+import traceback
 
 # Root path
 base_path = dirname(os.path.abspath(__file__))
@@ -19,6 +18,7 @@ sys.path.insert(0, os.path.join(base_path, 'libs'))
 
 from couchpotato.environment import Env
 from couchpotato.core.helpers.variable import getDataDir
+from concurrentloghandler.cloghandler import ConcurrentRotatingFileHandler
 
 class Loader(object):
 
@@ -56,7 +56,7 @@ class Loader(object):
         self.log = CPLog(__name__)
 
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s', '%H:%M:%S')
-        hdlr = handlers.RotatingFileHandler(os.path.join(self.log_dir, 'error.log'), 'a', 500000, 10)
+        hdlr = ConcurrentRotatingFileHandler(os.path.join(self.log_dir, 'error.log'), 'a', 500000, 10)
         hdlr.setLevel(logging.CRITICAL)
         hdlr.setFormatter(formatter)
         self.log.logger.addHandler(hdlr)
