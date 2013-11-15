@@ -141,7 +141,7 @@ class MovieSearchResult( SearchRepr, PagedRequest ):
         if locale is None:
             locale = get_locale()
         super(MovieSearchResult, self).__init__(
-                                request.new(language=locale.language),
+                                request.new(language='fr'),
                                 lambda x: Movie(raw=x, locale=locale))
 
 def searchPerson(query, adult=False):
@@ -186,7 +186,7 @@ class CollectionSearchResult( SearchRepr, PagedRequest ):
         if locale is None:
             locale = get_locale()
         super(CollectionSearchResult, self).__init__(
-                                request.new(language=locale.language),
+                                request.new(language='fr'),
                                 lambda x: Collection(raw=x, locale=locale))
 
 class Image( Element ):
@@ -210,11 +210,11 @@ class Image( Element ):
 
     # sort preferring locale's language, but keep remaining ordering consistent
     def __lt__(self, other):
-        return (self.language == self._locale.language) \
+        return (self.language == 'fr') \
                 and (self.language != other.language)
     def __gt__(self, other):
         return (self.language != other.language) \
-                and (other.language == self._locale.language)
+                and (other.language == 'fr')
     # direct match for comparison
     def __eq__(self, other):
         return self.filename == other.filename
@@ -280,7 +280,7 @@ class Person( Element ):
         return Request('person/{0}'.format(self.id))
     def _populate_credits(self):
         return Request('person/{0}/credits'.format(self.id), \
-                                language=self._locale.language)
+                                language='fr')
     def _populate_images(self):
         return Request('person/{0}/images'.format(self.id))
 
@@ -365,7 +365,7 @@ class Genre( NameRepr, Element ):
 
     def _populate_movies(self):
         return Request('genre/{0}/movies'.format(self.id), \
-                            language=self._locale.language)
+                            language='fr')
 
     @property
     def movies(self):
@@ -381,7 +381,7 @@ class Genre( NameRepr, Element ):
         class GenreList( Element ):
             genres = Datalist('genres', handler=Genre)
             def _populate(self):
-                return Request('genre/list', language=self._locale.language)
+                return Request('genre/list', language='fr')
         return GenreList(locale=locale).genres
         
 
@@ -401,7 +401,7 @@ class Studio( NameRepr, Element ):
         return Request('company/{0}'.format(self.id))
     def _populate_movies(self):
         return Request('company/{0}/movies'.format(self.id), \
-                            language=self._locale.language)
+                            language='fr')
 
     # FIXME: add a cleaner way of adding types with no additional processing
     @property
@@ -531,7 +531,7 @@ class Movie( Element ):
 
     def _populate(self):
         return Request('movie/{0}'.format(self.id), \
-                            language=self._locale.language)
+                            language='fr')
     def _populate_titles(self):
         kwargs = {}
         if not self._locale.fallthrough:
@@ -542,7 +542,7 @@ class Movie( Element ):
     def _populate_images(self):
         kwargs = {}
         if not self._locale.fallthrough:
-            kwargs['language'] = self._locale.language
+            kwargs['language'] = 'fr'
         return Request('movie/{0}/images'.format(self.id), **kwargs)
     def _populate_keywords(self):
         return Request('movie/{0}/keywords'.format(self.id))
@@ -550,7 +550,7 @@ class Movie( Element ):
         return Request('movie/{0}/releases'.format(self.id))
     def _populate_trailers(self):
         return Request('movie/{0}/trailers'.format(self.id), \
-                            language=self._locale.language)
+                            language='fr')
     def _populate_translations(self):
         return Request('movie/{0}/translations'.format(self.id))
 
@@ -659,11 +659,11 @@ class Collection( NameRepr, Element ):
 
     def _populate(self):
         return Request('collection/{0}'.format(self.id), \
-                            language=self._locale.language)
+                            language='fr')
     def _populate_images(self):
         kwargs = {}
         if not self._locale.fallthrough:
-            kwargs['language'] = self._locale.language
+            kwargs['language'] = 'fr'
         return Request('collection/{0}/images'.format(self.id), **kwargs)
 
     backdrops        = Datalist('backdrops', handler=Backdrop, \
