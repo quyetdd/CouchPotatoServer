@@ -114,9 +114,31 @@ class Renamer(Plugin):
 
         # Check to see if the no_process folders are inside the provided movie_folder
         if movie_folder and not os.path.isdir(movie_folder):
-            log.error('The provided movie folder %s does not exist.', movie_folder)
-            return
-        elif movie_folder:
+            log.debug('The provided movie folder %s does not exist. Trying to find it in the \'from\' folder.', movie_folder)
+
+            # Update to the from folder
+            if len(release_download.get('files')) == 1:
+                new_movie_folder = ss(self.conf('from')) # ADD 'sp' function when that is pulled
+            else:
+                new_movie_folder = os.path.join(ss(self.conf('from')), os.path.basename(movie_folder)) # ADD 'sp' function when that is pulled
+
+            if not os.path.isdir(new_movie_folder):
+                log.error('The provided movie folder %s does not exist and could also not be found in the \'from\' folder.', movie_folder)
+                return
+
+            # Update the files
+            new_files = [os.path.join(new_movie_folder, os.path.relpath(filename, movie_folder)) for filename in splitString(release_download.get('files'), '|')]
+            if new_files and not os.path.isfile(new_files[0]):
+                log.error('The provided movie folder %s does not exist and its files could also not be found in the \'from\' folder.', movie_folder)
+                return
+
+            # Update release_download info to the from folder
+            log.debug('Release %s found in the \'from\' folder.', movie_folder)
+            release_download['folder'] = new_movie_folder
+            release_download['files'] = '|'.join(new_files)
+            movie_folder = new_movie_folder
+
+        if movie_folder:
             for item in no_process:
                 if movie_folder in item:
                     log.error('To protect your data, the movie libraries can\'t be inside of or the same as the provided movie folder.')
@@ -617,7 +639,7 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
         # Match all found ignore files with the tag_files and delete if found
         for tag_file in tag_files:
-            ignore_file = fnmatch.filter(ignore_files, '%s.%s.ignore' % (os.path.splitext(tag_file)[0], tag if tag else '*'))
+            ignore_file = fnmatch.filter(ignore_files, '%s.%s.ignore' % (re.escape(os.path.splitext(tag_file)[0]), tag if tag else '*'))
             for filename in ignore_file:
                 try:
                     os.remove(filename)
@@ -714,19 +736,35 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
         replaced = toUnicode(string)
         for x, r in replacements.iteritems():
+            if x in ['thename', 'namethe']:
+                continue
             if r is not None:
                 replaced = replaced.replace(u'<%s>' % toUnicode(x), toUnicode(r))
             else:
                 #If information is not available, we don't want the tag in the filename
                 replaced = replaced.replace('<' + x + '>', '')
 
+        replaced = self.replaceDoubles(replaced.lstrip('. '))
+        for x, r in replacements.iteritems():
+            if x in ['thename', 'namethe']:
+                replaced = replaced.replace(u'<%s>' % toUnicode(x), toUnicode(r))
         replaced = re.sub(r"[\x00:\*\?\"<>\|]", '', replaced)
 
         sep = self.conf('foldersep') if folder else self.conf('separator')
-        return self.replaceDoubles(replaced.lstrip('. ')).replace(' ', ' ' if not sep else sep)
+        return replaced.replace(' ', ' ' if not sep else sep)
 
     def replaceDoubles(self, string):
-        return string.replace('  ', ' ').replace(' .', '.')
+
+        replaces = [
+            ('\.+', '.'), ('_+', '_'), ('-+', '-'), ('\s+', ' '),
+            ('(\s\.)+', '.'), ('(-\.)+', '.'), ('(\s-)+', '-'),
+        ]
+
+        for r in replaces:
+            reg, replace_with = r
+            string = re.sub(reg, replace_with, string)
+
+        return string
 
     def deleteEmptyFolder(self, folder, show_error = True):
         folder = ss(folder)
@@ -755,8 +793,8 @@ Remove it if you want it to be renamed (again, or at least let it try again)
 
         self.checking_snatched = True
 
-        snatched_status, ignored_status, failed_status, done_status, seeding_status, downloaded_status, missing_status = \
-            fireEvent('status.get', ['snatched', 'ignored', 'failed', 'done', 'seeding', 'downloaded', 'missing'], single = True)
+        snatched_status, ignored_status, failed_status, seeding_status, downloaded_status, missing_status = \
+            fireEvent('status.get', ['snatched', 'ignored', 'failed', 'seeding', 'downloaded', 'missing'], single = True)
 
         db = get_session()
         rels = db.query(Release).filter(
@@ -778,6 +816,11 @@ Remove it if you want it to be renamed (again, or at least let it try again)
                     for rel in rels:
                         rel_dict = rel.to_dict({'info': {}})
                         movie_dict = fireEvent('movie.get', rel.movie_id, single = True)
+
+                        if not isinstance(rel_dict['info'], (dict)):
+                            log.error('Faulty release found without any info, ignoring.')
+                            fireEvent('release.update_status', rel.id, status = ignored_status, single = True)
+                            continue
 
                         # check status
                         nzbname = self.createNzbName(rel_dict['info'], movie_dict)
