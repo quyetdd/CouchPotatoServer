@@ -15,11 +15,20 @@ class Trailer(Plugin):
     def searchSingle(self, message = None, group = None):
         if not group: group = {}
         if self.isDisabled() or len(group['files']['trailer']) > 0: return
-
-        trailers = fireEvent('trailer.search', group = group, merge = True)
+        if self.conf('usevf'):
+            filename = self.conf('name').replace('<filename>', group['filename'])
+            destination = os.path.join(group['destination_dir'], filename)
+            trailers = fireEvent('vftrailer.search', group = group, filename=filename, destination=destination, merge = True)
+        else :
+            trailers = fireEvent('trailer.search', group = group, merge = True)
         if not trailers or trailers == []:
             log.info('No trailers found for: %s', getTitle(group['library']))
             return False
+        
+        if self.conf('usevf'):
+            log.info('Trailers found in VF for: %s', getTitle(group['library']))
+            return True
+        else:
 
         for trailer in trailers.get(self.conf('quality'), []):
 
